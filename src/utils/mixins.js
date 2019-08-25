@@ -1,4 +1,4 @@
-import { omit, keys, isUndefined, isElement } from 'underscore';
+import { keys, isUndefined, isElement } from 'underscore';
 
 const elProt = window.Element.prototype;
 const matches =
@@ -103,12 +103,33 @@ const hasDnd = em => {
  * @return {HTMLElement}
  */
 const getElement = el => {
-  if (isElement(el)) {
+  if (isElement(el) || isTextNode(el)) {
     return el;
   } else if (el && el.getEl) {
     return el.getEl();
   }
 };
+
+/**
+ * Check if element is a text node
+ * @param  {HTMLElement} el
+ * @return {Boolean}
+ */
+const isTextNode = el => el && el.nodeType === 3;
+
+/**
+ * Check if element is a comment node
+ * @param  {HTMLElement} el
+ * @return {Boolean}
+ */
+export const isCommentNode = el => el && el.nodeType === 8;
+
+/**
+ * Check if element is a comment node
+ * @param  {HTMLElement} el
+ * @return {Boolean}
+ */
+export const isTaggableNode = el => el && !isTextNode(el) && !isCommentNode(el);
 
 /**
  * Ensure to fetch the model from the input argument
@@ -121,6 +142,47 @@ const getModel = (el, $) => {
   return model;
 };
 
+const getElRect = el => {
+  const def = {
+    top: 0,
+    left: 0,
+    width: 0,
+    height: 0
+  };
+  if (!el) return def;
+  let rectText;
+
+  if (isTextNode(el)) {
+    const range = document.createRange();
+    range.selectNode(el);
+    rectText = range.getBoundingClientRect();
+    range.detach();
+  }
+
+  return (
+    rectText || (el.getBoundingClientRect ? el.getBoundingClientRect() : def)
+  );
+};
+
+/**
+ * Get cross-device pointer event
+ * @param  {Event} ev
+ * @return {Event}
+ */
+const getPointerEvent = ev =>
+  ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+
+/**
+ * Get cross-browser keycode
+ * @param  {Event} ev
+ * @return {Number}
+ */
+const getKeyCode = ev => ev.which || ev.keyCode;
+const getKeyChar = ev => String.fromCharCode(getKeyCode(ev));
+const isEscKey = ev => getKeyCode(ev) === 27;
+
+const capitalize = str => str.charAt(0).toUpperCase() + str.substring(1);
+
 export {
   on,
   off,
@@ -128,9 +190,16 @@ export {
   upFirst,
   matches,
   getModel,
+  getElRect,
   camelCase,
+  isTextNode,
+  getKeyCode,
+  getKeyChar,
+  isEscKey,
   getElement,
   shallowDiff,
   normalizeFloat,
-  getUnitFromValue
+  getPointerEvent,
+  getUnitFromValue,
+  capitalize
 };

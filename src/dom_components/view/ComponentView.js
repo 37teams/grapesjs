@@ -1,11 +1,10 @@
 import Backbone from 'backbone';
-import { isArray, isEmpty } from 'underscore';
+import { isArray, isEmpty, each, keys } from 'underscore';
+import Components from '../model/Components';
+import ComponentsView from './ComponentsView';
+import Selectors from 'selector_manager/model/Selectors';
 
-const Components = require('../model/Components');
-const ComponentsView = require('./ComponentsView');
-const Selectors = require('selector_manager/model/Selectors');
-
-module.exports = Backbone.View.extend({
+export default Backbone.View.extend({
   className() {
     return this.getClasses();
   },
@@ -18,20 +17,23 @@ module.exports = Backbone.View.extend({
     const model = this.model;
     const config = opt.config || {};
     const em = config.em;
+    const modelOpt = model.opt || {};
+    const { $el } = this;
+    const { draggableComponents } = config;
     this.opts = opt;
+    this.modelOpt = modelOpt;
     this.config = config;
     this.em = em || '';
     this.pfx = config.stylePrefix || '';
     this.ppfx = config.pStylePrefix || '';
     this.attr = model.get('attributes');
     this.classe = this.attr.class || [];
-    const $el = this.$el;
     this.listenTo(model, 'change:style', this.updateStyle);
     this.listenTo(model, 'change:attributes', this.renderAttributes);
     this.listenTo(model, 'change:highlightable', this.updateHighlight);
     this.listenTo(model, 'change:status', this.updateStatus);
     this.listenTo(model, 'change:state', this.updateState);
-    this.listenTo(model, 'change:script', this.render);
+    this.listenTo(model, 'change:script', this.reset);
     this.listenTo(model, 'change:content', this.updateContent);
     this.listenTo(model, 'change', this.handleChange);
     this.listenTo(model, 'active', this.onActive);
@@ -39,7 +41,12 @@ module.exports = Backbone.View.extend({
     model.view = this;
     this.initClasses();
     this.initComponents({ avoidRender: 1 });
-    this.init();
+    this.events = {
+      ...this.events,
+      ...(draggableComponents && { dragstart: 'handleDragStart' })
+    };
+    this.delegateEvents();
+    !modelOpt.temporary && this.init();
   },
 
   /**
@@ -51,6 +58,15 @@ module.exports = Backbone.View.extend({
    * Callback executed when the `active` event is triggered on component
    */
   onActive() {},
+
+  handleDragStart(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.em.get('Commands').run('tlb-move', {
+      target: this.model,
+      event
+    });
+  },
 
   initClasses() {
     const { model } = this;
@@ -232,17 +248,33 @@ module.exports = Backbone.View.extend({
    * @private
    * */
   updateAttributes() {
-    const model = this.model;
-    const defaultAttr = { 'data-gjs-type': model.get('type') || 'default' };
+    const attrs = [];
+    const { model, $el, el, config } = this;
+    const { highlightable, textable, type } = model.attributes;
+    const { draggableComponents } = config;
 
-    if (model.get('highlightable')) {
-      defaultAttr['data-highlightable'] = 1;
-    }
+    const defaultAttr = {
+      'data-gjs-type': type || 'default',
+      ...(draggableComponents && { draggable: true }),
+      ...(highlightable && { 'data-highlightable': 1 }),
+      ...(textable && {
+        contenteditable: 'false',
+        'data-gjs-textable': 'true'
+      })
+    };
 
-    this.$el.attr({
+    // Remove all current attributes
+    each(el.attributes, attr => attrs.push(attr.nodeName));
+    attrs.forEach(attr => $el.removeAttr(attr));
+    const attr = {
       ...defaultAttr,
       ...model.getAttributes()
-    });
+    };
+
+    // Remove all `false` attributes
+    keys(attr).forEach(key => attr[key] === false && delete attr[key]);
+
+    $el.attr(attr);
     this.updateStyle();
   },
 
@@ -268,15 +300,13 @@ module.exports = Backbone.View.extend({
    * @private
    */
   updateScript() {
-    if (!this.model.get('script')) {
-      return;
-    }
-
-    var em = this.em;
-    if (em) {
-      var canvas = em.get('Canvas');
-      canvas.getCanvasView().updateScript(this);
-    }
+    const { model, em } = this;
+    if (!model.get('script')) return;
+    em &&
+      em
+        .get('Canvas')
+        .getCanvasView()
+        .updateScript(this);
   },
 
   /**
@@ -316,6 +346,19 @@ module.exports = Backbone.View.extend({
   },
 
   /**
+   * Recreate the element of the view
+   */
+  reset() {
+    const { el, model } = this;
+    const collection = model.components();
+    this.el = '';
+    this._ensureElement();
+    this.$el.data({ model, collection });
+    el.replaceWith(this.el);
+    this.render();
+  },
+
+  /**
    * Render children components
    * @private
    */
@@ -344,6 +387,7 @@ module.exports = Backbone.View.extend({
 
   render() {
     this.renderAttributes();
+    if (this.modelOpt.temporary) return this;
     this.renderChildren();
     this.updateScript();
     this.postRender();
@@ -352,9 +396,12 @@ module.exports = Backbone.View.extend({
   },
 
   postRender() {
-    const { em, model } = this;
-    this.onRender();
-    em && em.trigger('component:mount', model);
+    const { em, model, modelOpt } = this;
+
+    if (!modelOpt.temporary) {
+      this.onRender();
+      em && em.trigger('component:mount', model);
+    }
   },
 
   onRender() {}

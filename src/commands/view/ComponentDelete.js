@@ -1,8 +1,7 @@
 import { isArray } from 'underscore';
 
-module.exports = {
+export default {
   run(ed, sender, opts = {}) {
-    if (ed.getModel().isEditing() || ed.Canvas.isInputFocused()) return;
     let components = opts.component || ed.getSelectedAll();
     components = isArray(components) ? [...components] : [components];
 

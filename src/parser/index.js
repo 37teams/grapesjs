@@ -1,8 +1,9 @@
-module.exports = () => {
-  let conf = {},
-    defaults = require('./config/config'),
-    parserCss = require('./model/ParserCss'),
-    parserHtml = require('./model/ParserHtml');
+import defaults from './config/config';
+import parserCss from './model/ParserCss';
+import parserHtml from './model/ParserHtml';
+
+export default () => {
+  let conf = {};
   let pHtml, pCss;
 
   return {
@@ -47,6 +48,9 @@ module.exports = () => {
       conf.Parser = this;
       pHtml = new parserHtml(conf);
       pCss = new parserCss(conf);
+      this.em = conf.em;
+      this.parserCss = pCss;
+      this.parserHtml = pHtml;
       return this;
     },
 
@@ -56,7 +60,8 @@ module.exports = () => {
      * @return {Object}
      */
     parseHtml(str) {
-      pHtml.compTypes = this.compTypes;
+      const { em, compTypes } = this;
+      pHtml.compTypes = em ? em.get('DomComponents').getTypes() : compTypes;
       return pHtml.parse(str, pCss);
     },
 

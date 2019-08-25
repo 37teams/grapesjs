@@ -18,11 +18,11 @@
  * ```
  *
  * ### Components
- * * `component:create` - Component is created (only the model, is not yet mounted in the canvas)
- * * `component:mount` - Component is monted to an element and rendered in canvas
+ * * `component:create` - Component is created (only the model, is not yet mounted in the canvas), called after the init() method
+ * * `component:mount` - Component is mounted to an element and rendered in canvas
  * * `component:add` - Triggered when a new component is added to the editor, the model is passed as an argument to the callback
  * * `component:remove` - Triggered when a component is removed, the model is passed as an argument to the callback
- * * `component:clone` - Triggered when a new component is added by a clone command, the model is passed as an argument to the callback
+ * * `component:clone` - Triggered when a component is cloned, the new model is passed as an argument to the callback
  * * `component:update` - Triggered when a component is updated (moved, styled, etc.), the model is passed as an argument to the callback
  * * `component:update:{propertyName}` - Listen any property change, the model is passed as an argument to the callback
  * * `component:styleUpdate` - Triggered when the style of the component is updated, the model is passed as an argument to the callback
@@ -30,6 +30,8 @@
  * * `component:selected` - New component selected, the selected model is passed as an argument to the callback
  * * `component:deselected` - Component deselected, the deselected model is passed as an argument to the callback
  * * `component:toggled` - Component selection changed, toggled model is passed as an argument to the callback
+ * * `component:type:add` - New component type added, the new type is passed as an argument to the callback
+ * * `component:type:update` - Component type updated, the updated type is passed as an argument to the callback
  * ### Blocks
  * * `block:add` - New block added
  * * `block:remove` - Block removed
@@ -76,31 +78,36 @@
  * ### RTE
  * * `rte:enable` - RTE enabled. The view, on which RTE is enabled, is passed as an argument
  * * `rte:disable` - RTE disabled. The view, on which RTE is disabled, is passed as an argument
+ * ### Modal
+ * * `modal:open` - Modal is opened
+ * * `modal:close` - Modal is closed
  * ### Commands
  * * `run:{commandName}` - Triggered when some command is called to run (eg. editor.runCommand('preview'))
  * * `stop:{commandName}` - Triggered when some command is called to stop (eg. editor.stopCommand('preview'))
  * * `run:{commandName}:before` - Triggered before the command is called
  * * `stop:{commandName}:before` - Triggered before the command is called to stop
  * * `abort:{commandName}` - Triggered when the command execution is aborted (`editor.on(`run:preview:before`, opts => opts.abort = 1);`)
+ * * `run` - Triggered on run of any command. The id and the result are passed as arguments to the callback
+ * * `stop` - Triggered on stop of any command. The id and the result are passed as arguments to the callback
  * ### General
- * * `canvasScroll` - Triggered when the canvas is scrolle
+ * * `canvasScroll` - Canvas is scrolled
+ * * `update` - The structure of the template is updated (its HTML/CSS)
  * * `undo` - Undo executed
  * * `redo` - Redo executed
- * * `load` - When the editor is loaded
+ * * `load` - Editor is loaded
  *
  * @module Editor
  */
 import $ from 'cash-dom';
+import defaults from './config/config';
+import EditorModel from './model/Editor';
+import EditorView from './view/EditorView';
 
-module.exports = config => {
-  var c = config || {},
-    defaults = require('./config/config'),
-    EditorModel = require('./model/Editor'),
-    EditorView = require('./view/EditorView');
-
-  for (var name in defaults) {
-    if (!(name in c)) c[name] = defaults[name];
-  }
+export default (config = {}) => {
+  const c = {
+    ...defaults,
+    ...config
+  };
 
   c.pStylePrefix = c.stylePrefix;
   var em = new EditorModel(c);
@@ -330,7 +337,7 @@ module.exports = config => {
      * @param {Boolean} [opts.avoidUpdateStyle=false] If the HTML string contains styles,
      * by default, they will be created and, if already exist, updated. When this option
      * is true, styles already created will not be updated.
-     * @return {Model|Array<Model>}
+     * @return {Array<Component>}
      * @example
      * editor.addComponents('<div class="cls">New component</div>');
      * // or
@@ -341,7 +348,7 @@ module.exports = config => {
      * });
      */
     addComponents(components, opts) {
-      return this.getComponents().add(components, opts);
+      return this.getWrapper().append(components, opts);
     },
 
     /**
@@ -404,6 +411,8 @@ module.exports = config => {
     /**
      * Select a component
      * @param  {Component|HTMLElement} el Component to select
+     * @param  {Object} [opts] Options
+     * @param  {Boolean} [opts.scroll] Scroll canvas to the selected element
      * @return {this}
      * @example
      * // Select dropped block
@@ -411,8 +420,8 @@ module.exports = config => {
      *  editor.select(model);
      * });
      */
-    select(el) {
-      em.setSelected(el);
+    select(el, opts) {
+      em.setSelected(el, opts);
       return this;
     },
 
@@ -605,6 +614,17 @@ module.exports = config => {
      */
     setCustomParserCss(parser) {
       this.Parser.getConfig().parserCss = parser;
+      return this;
+    },
+
+    /**
+     * Change the global drag mode of components.
+     * To get more about this feature read: https://github.com/artf/grapesjs/issues/1936
+     * @param {String} value Drag mode, options: 'absolute' | 'translate'
+     * @returns {this}
+     */
+    setDragMode(value) {
+      em.setDragMode(value);
       return this;
     },
 

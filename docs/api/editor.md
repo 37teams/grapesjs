@@ -23,11 +23,11 @@ editor.on('EVENT-NAME', (some, argument) => {
 
 ### Components
 
--   `component:create` - Component is created (only the model, is not yet mounted in the canvas)
--   `component:mount` - Component is monted to an element and rendered in canvas
+-   `component:create` - Component is created (only the model, is not yet mounted in the canvas), called after the init() method
+-   `component:mount` - Component is mounted to an element and rendered in canvas
 -   `component:add` - Triggered when a new component is added to the editor, the model is passed as an argument to the callback
 -   `component:remove` - Triggered when a component is removed, the model is passed as an argument to the callback
--   `component:clone` - Triggered when a new component is added by a clone command, the model is passed as an argument to the callback
+-   `component:clone` - Triggered when a component is cloned, the new model is passed as an argument to the callback
 -   `component:update` - Triggered when a component is updated (moved, styled, etc.), the model is passed as an argument to the callback
 -   `component:update:{propertyName}` - Listen any property change, the model is passed as an argument to the callback
 -   `component:styleUpdate` - Triggered when the style of the component is updated, the model is passed as an argument to the callback
@@ -35,6 +35,8 @@ editor.on('EVENT-NAME', (some, argument) => {
 -   `component:selected` - New component selected, the selected model is passed as an argument to the callback
 -   `component:deselected` - Component deselected, the deselected model is passed as an argument to the callback
 -   `component:toggled` - Component selection changed, toggled model is passed as an argument to the callback
+-   `component:type:add` - New component type added, the new type is passed as an argument to the callback
+-   `component:type:update` - Component type updated, the updated type is passed as an argument to the callback
 
 ### Blocks
 
@@ -98,6 +100,11 @@ editor.on('EVENT-NAME', (some, argument) => {
 -   `rte:enable` - RTE enabled. The view, on which RTE is enabled, is passed as an argument
 -   `rte:disable` - RTE disabled. The view, on which RTE is disabled, is passed as an argument
 
+### Modal
+
+-   `modal:open` - Modal is opened
+-   `modal:close` - Modal is closed
+
 ### Commands
 
 -   `run:{commandName}` - Triggered when some command is called to run (eg. editor.runCommand('preview'))
@@ -105,13 +112,16 @@ editor.on('EVENT-NAME', (some, argument) => {
 -   `run:{commandName}:before` - Triggered before the command is called
 -   `stop:{commandName}:before` - Triggered before the command is called to stop
 -   `abort:{commandName}` - Triggered when the command execution is aborted (`editor.on(`run:preview:before`, opts => opts.abort = 1);`)
+-   `run` - Triggered on run of any command. The id and the result are passed as arguments to the callback
+-   `stop` - Triggered on stop of any command. The id and the result are passed as arguments to the callback
 
 ### General
 
--   `canvasScroll` - Triggered when the canvas is scrolle
+-   `canvasScroll` - Canvas is scrolled
+-   `update` - The structure of the template is updated (its HTML/CSS)
 -   `undo` - Undo executed
 -   `redo` - Redo executed
--   `load` - When the editor is loaded
+-   `load` - Editor is loaded
 
 ## getConfig
 
@@ -208,7 +218,7 @@ editor.addComponents({
 });
 ```
 
-Returns **(Model | [Array][4]&lt;Model>)** 
+Returns **[Array][4]&lt;Component>** 
 
 ## getStyle
 
@@ -266,6 +276,8 @@ Select a component
 ### Parameters
 
 -   `el` **(Component | [HTMLElement][6])** Component to select
+-   `opts` **[Object][3]?** Options
+    -   `opts.scroll` **[Boolean][5]?** Scroll canvas to the selected element
 
 ### Examples
 
@@ -490,6 +502,17 @@ editor.setCustomParserCss(css => {
 
 Returns **this** 
 
+## setDragMode
+
+Change the global drag mode of components.
+To get more about this feature read: [https://github.com/artf/grapesjs/issues/1936][9]
+
+### Parameters
+
+-   `value` **[String][2]** Drag mode, options: 'absolute' | 'translate'
+
+Returns **this** 
+
 ## log
 
 Trigger event log message
@@ -582,3 +605,5 @@ Returns **[HTMLElement][6]**
 [7]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/function
 
 [8]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
+
+[9]: https://github.com/artf/grapesjs/issues/1936
