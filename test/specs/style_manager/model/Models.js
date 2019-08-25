@@ -1,11 +1,11 @@
-const Sector = require('style_manager/model/Sector');
-const Sectors = require('style_manager/model/Sectors');
-const Property = require('style_manager/model/Property');
-const PropertyInteger = require('style_manager/model/PropertyInteger');
-const Properties = require('style_manager/model/Properties');
-const Layer = require('style_manager/model/Layer');
-const Layers = require('style_manager/model/Layers');
-const PropertyFactory = require('style_manager/model/PropertyFactory');
+import Sector from 'style_manager/model/Sector';
+import Sectors from 'style_manager/model/Sectors';
+import Property from 'style_manager/model/Property';
+import PropertyInteger from 'style_manager/model/PropertyInteger';
+import Properties from 'style_manager/model/Properties';
+import Layer from 'style_manager/model/Layer';
+import Layers from 'style_manager/model/Layers';
+import PropertyFactory from 'style_manager/model/PropertyFactory';
 
 module.exports = {
   run() {
@@ -60,6 +60,7 @@ module.exports = {
             { value: 'block' },
             { value: 'inline' },
             { value: 'inline-block' },
+            { value: 'flex' },
             { value: 'none' }
           ]
         });
@@ -369,8 +370,117 @@ module.exports = {
               { value: 'block' },
               { value: 'inline' },
               { value: 'inline-block' },
+              { value: 'flex' },
               { value: 'none' }
             ]
+          }
+        ]);
+      });
+
+      test('Build flex-direction', () => {
+        expect(obj.build('flex-direction')).toEqual([
+          {
+            property: 'flex-direction',
+            type: 'select',
+            defaults: 'row',
+            list: [
+              { value: 'row' },
+              { value: 'row-reverse' },
+              { value: 'column' },
+              { value: 'column-reverse' }
+            ],
+            requires: { display: ['flex'] }
+          }
+        ]);
+      });
+
+      test('Build flex-wrap', () => {
+        expect(obj.build('flex-wrap')).toEqual([
+          {
+            property: 'flex-wrap',
+            type: 'select',
+            defaults: 'nowrap',
+            list: [
+              { value: 'nowrap' },
+              { value: 'wrap' },
+              { value: 'wrap-reverse' }
+            ],
+            requires: { display: ['flex'] }
+          }
+        ]);
+      });
+
+      test('Build justify-content', () => {
+        expect(obj.build('justify-content')).toEqual([
+          {
+            property: 'justify-content',
+            type: 'select',
+            defaults: 'flex-start',
+            list: [
+              { value: 'flex-start' },
+              { value: 'flex-end' },
+              { value: 'center' },
+              { value: 'space-between' },
+              { value: 'space-around' },
+              { value: 'space-evenly' }
+            ],
+            requires: { display: ['flex'] }
+          }
+        ]);
+      });
+
+      test('Build align-items', () => {
+        expect(obj.build('align-items')).toEqual([
+          {
+            property: 'align-items',
+            type: 'select',
+            defaults: 'stretch',
+            list: [
+              { value: 'flex-start' },
+              { value: 'flex-end' },
+              { value: 'center' },
+              { value: 'baseline' },
+              { value: 'stretch' }
+            ],
+            requires: { display: ['flex'] }
+          }
+        ]);
+      });
+
+      test('Build align-content', () => {
+        expect(obj.build('align-content')).toEqual([
+          {
+            property: 'align-content',
+            type: 'select',
+            defaults: 'stretch',
+            list: [
+              { value: 'flex-start' },
+              { value: 'flex-end' },
+              { value: 'center' },
+              { value: 'space-between' },
+              { value: 'space-around' },
+              { value: 'stretch' }
+            ],
+            requires: { display: ['flex'] }
+          }
+        ]);
+      });
+
+      test('Build align-self', () => {
+        expect(obj.build('align-self')).toEqual([
+          {
+            property: 'align-self',
+            type: 'select',
+            defaults: 'auto',
+            list: [
+              { value: 'auto' },
+              { value: 'flex-start' },
+              { value: 'flex-end' },
+              { value: 'center' },
+              { value: 'baseline' },
+              { value: 'stretch' }
+            ],
+            requiresParent: { display: ['flex'] }
           }
         ]);
       });
@@ -391,42 +501,75 @@ module.exports = {
         ]);
       });
 
-      test('Build top, left, right, bottom', () => {
+      test('Build left, right', () => {
         var res = {
           type: 'integer',
-          units: ['px', '%'],
-          defaults: 0
+          units: ['px', '%', 'vw'],
+          defaults: 'auto',
+          fixedValues: ['initial', 'inherit', 'auto']
         };
-        res.property = 'top';
-        expect(obj.build('top')).toEqual([res]);
         res.property = 'right';
         expect(obj.build('right')).toEqual([res]);
-        res.property = 'bottom';
-        expect(obj.build('bottom')).toEqual([res]);
         res.property = 'left';
         expect(obj.build('left')).toEqual([res]);
       });
 
-      test('Build width and height family', () => {
+      test('Build top, bottom', () => {
         var res = {
           type: 'integer',
-          units: ['px', '%'],
+          units: ['px', '%', 'vh'],
+          defaults: 'auto',
+          fixedValues: ['initial', 'inherit', 'auto']
+        };
+        res.property = 'top';
+        expect(obj.build('top')).toEqual([res]);
+        res.property = 'bottom';
+        expect(obj.build('bottom')).toEqual([res]);
+      });
+
+      test('Build width family', () => {
+        var res = {
+          type: 'integer',
+          units: ['px', '%', 'vw'],
           defaults: 'auto',
           fixedValues: ['initial', 'inherit', 'auto'],
           min: 0
         };
         res.property = 'width';
         expect(obj.build('width')).toEqual([res]);
+        res.property = 'min-width';
+        expect(obj.build('min-width')).toEqual([res]);
+        res.property = 'max-width';
+        expect(obj.build('max-width')).toEqual([res]);
+      });
+
+      test('Build flex-basis', () => {
+        var res = {
+          type: 'integer',
+          units: ['px', '%', 'vw', 'vh'],
+          defaults: 'auto',
+          fixedValues: ['initial', 'inherit', 'auto'],
+          requiresParent: { display: ['flex'] },
+          min: 0
+        };
+        res.property = 'flex-basis';
+        expect(obj.build('flex-basis')).toEqual([res]);
+      });
+
+      test('Build height family', () => {
+        var res = {
+          type: 'integer',
+          units: ['px', '%', 'vh'],
+          defaults: 'auto',
+          fixedValues: ['initial', 'inherit', 'auto'],
+          min: 0
+        };
         res.property = 'height';
         expect(obj.build('height')).toEqual([res]);
         res.property = 'min-height';
         expect(obj.build('min-height')).toEqual([res]);
         res.property = 'max-height';
         expect(obj.build('max-height')).toEqual([res]);
-        res.property = 'min-width';
-        expect(obj.build('min-width')).toEqual([res]);
-        res.property = 'max-width';
-        expect(obj.build('max-width')).toEqual([res]);
       });
 
       test('Build margin', () => {
@@ -438,28 +581,28 @@ module.exports = {
               fixedValues: ['initial', 'inherit', 'auto'],
               property: 'margin-top',
               type: 'integer',
-              units: ['px', '%'],
+              units: ['px', '%', 'vh'],
               defaults: 0
             },
             {
               fixedValues: ['initial', 'inherit', 'auto'],
               property: 'margin-right',
               type: 'integer',
-              units: ['px', '%'],
+              units: ['px', '%', 'vw'],
               defaults: 0
             },
             {
               fixedValues: ['initial', 'inherit', 'auto'],
               property: 'margin-bottom',
               type: 'integer',
-              units: ['px', '%'],
+              units: ['px', '%', 'vh'],
               defaults: 0
             },
             {
               fixedValues: ['initial', 'inherit', 'auto'],
               property: 'margin-left',
               type: 'integer',
-              units: ['px', '%'],
+              units: ['px', '%', 'vw'],
               defaults: 0
             }
           ]
@@ -476,7 +619,7 @@ module.exports = {
               property: 'padding-top',
               fixedValues: ['initial', 'inherit', 'auto'],
               type: 'integer',
-              units: ['px', '%'],
+              units: ['px', '%', 'vh'],
               defaults: 0,
               min: 0
             },
@@ -484,7 +627,7 @@ module.exports = {
               property: 'padding-right',
               fixedValues: ['initial', 'inherit', 'auto'],
               type: 'integer',
-              units: ['px', '%'],
+              units: ['px', '%', 'vw'],
               defaults: 0,
               min: 0
             },
@@ -492,7 +635,7 @@ module.exports = {
               property: 'padding-bottom',
               fixedValues: ['initial', 'inherit', 'auto'],
               type: 'integer',
-              units: ['px', '%'],
+              units: ['px', '%', 'vh'],
               defaults: 0,
               min: 0
             },
@@ -500,7 +643,7 @@ module.exports = {
               property: 'padding-left',
               fixedValues: ['initial', 'inherit', 'auto'],
               type: 'integer',
-              units: ['px', '%'],
+              units: ['px', '%', 'vw'],
               defaults: 0,
               min: 0
             }
@@ -685,7 +828,7 @@ module.exports = {
               property: 'border-top-left-radius',
               type: 'integer',
               units: ['px', '%'],
-              defaults: 0,
+              defaults: '0px',
               min: 0
             },
             {
@@ -693,21 +836,21 @@ module.exports = {
               type: 'integer',
               units: ['px', '%'],
               min: 0,
-              defaults: 0
-            },
-            {
-              property: 'border-bottom-left-radius',
-              type: 'integer',
-              units: ['px', '%'],
-              min: 0,
-              defaults: 0
+              defaults: '0px'
             },
             {
               property: 'border-bottom-right-radius',
               type: 'integer',
               units: ['px', '%'],
               min: 0,
-              defaults: 0
+              defaults: '0px'
+            },
+            {
+              property: 'border-bottom-left-radius',
+              type: 'integer',
+              units: ['px', '%'],
+              min: 0,
+              defaults: '0px'
             }
           ]
         };
@@ -1013,6 +1156,36 @@ module.exports = {
           ]
         };
         expect(obj.build('overflow')).toEqual([res]);
+      });
+
+      test('Build overflow-x', () => {
+        var res = {
+          type: 'select',
+          property: 'overflow-x',
+          defaults: 'visible',
+          list: [
+            { value: 'visible' },
+            { value: 'hidden' },
+            { value: 'scroll' },
+            { value: 'auto' }
+          ]
+        };
+        expect(obj.build('overflow-x')).toEqual([res]);
+      });
+
+      test('Build overflow-y', () => {
+        var res = {
+          type: 'select',
+          property: 'overflow-y',
+          defaults: 'visible',
+          list: [
+            { value: 'visible' },
+            { value: 'hidden' },
+            { value: 'scroll' },
+            { value: 'auto' }
+          ]
+        };
+        expect(obj.build('overflow-y')).toEqual([res]);
       });
     });
   }

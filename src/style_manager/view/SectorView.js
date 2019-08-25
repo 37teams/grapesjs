@@ -1,9 +1,9 @@
-import _ from 'underscore';
 import Backbone from 'backbone';
-var PropertiesView = require('./PropertiesView');
+import { template } from 'underscore';
+import PropertiesView from './PropertiesView';
 
-module.exports = Backbone.View.extend({
-  template: _.template(`
+export default Backbone.View.extend({
+  template: template(`
   <div class="<%= pfx %>title" data-sector-title>
     <i id="<%= pfx %>caret" class="fa"></i>
     <%= label %>
@@ -78,15 +78,17 @@ module.exports = Backbone.View.extend({
   },
 
   render() {
+    const { pfx, model } = this;
+    const { id } = model.attributes;
     this.$el.html(
       this.template({
-        pfx: this.pfx,
-        label: this.model.get('name')
+        pfx,
+        label: model.get('name')
       })
     );
-    this.$caret = this.$el.find('#' + this.pfx + 'caret');
+    this.$caret = this.$el.find(`#${pfx}caret`);
     this.renderProperties();
-    this.$el.attr('class', this.pfx + 'sector no-select');
+    this.$el.attr('class', `${pfx}sector ${pfx}sector__${id} no-select`);
     this.updateOpen();
     return this;
   },

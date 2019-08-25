@@ -48,6 +48,8 @@ component.get('tagName');
 -   `content` **[String][1]?** Content of the component (not escaped) which will be appended before children rendering. Default: `''`
 -   `icon` **[String][1]?** Component's icon, this string will be inserted before the name (in Layers and badge), eg. it can be an HTML string '<i class="fa fa-square-o"></i>'. Default: `''`
 -   `script` **([String][1] \| [Function][6])?** Component's javascript. More about it [here][7]. Default: `''`
+-   `script-export` **([String][1] \| [Function][6])?** You can specify javascript available only in export functions (eg. when you get the HTML).
+    If this property is defined it will overwrite the `script` one (in export functions). Default: `''`
 -   `traits` **[Array][4]&lt;([Object][2] \| [String][1])>?** Component's traits. More about it [here][8]. Default: `['id', 'title']`
 -   `propagate` **[Array][4]&lt;[String][1]>?** Indicates an array of properties which will be inhereted by all NEW appended children.
      For example if you create a component likes this: `{ removable: false, draggable: false, propagate: ['removable', 'draggable'] }`
@@ -56,6 +58,24 @@ component.get('tagName');
     Eg. `toolbar: [ { attributes: {class: 'fa fa-arrows'}, command: 'tlb-move' }, ... ]`.
     By default, when `toolbar` property is falsy the editor will add automatically commands like `move`, `delete`, etc. based on its properties.
 -   `components` **Collection&lt;[Component][9]>?** Children components. Default: `null`
+
+## init
+
+Hook method, called once the model is created
+
+## updated
+
+Hook method, called when the model has been updated (eg. updated some model's property)
+
+### Parameters
+
+-   `property` **[String][1]** Property name, if triggered after some property update
+-   `value` **any** Property value, if triggered after some property update
+-   `previous` **any** Property previous value, if triggered after some property update
+
+## removed
+
+Hook method, called once the model has been removed
 
 ## is
 
@@ -74,6 +94,29 @@ component.is('image')
 
 Returns **[Boolean][3]** 
 
+## props
+
+Return all the propeties
+
+Returns **[Object][2]** 
+
+## index
+
+Get the index of the component in the parent collection.
+
+Returns **[Number][10]** 
+
+## setDragMode
+
+Change the drag mode of the component.
+To get more about this feature read: [https://github.com/artf/grapesjs/issues/1936][11]
+
+### Parameters
+
+-   `value` **[String][1]** Drag mode, options: 'absolute' | 'translate'
+
+Returns **this** 
+
 ## find
 
 Find inner components by query string.
@@ -91,6 +134,25 @@ component.find('div > .class');
 ```
 
 Returns **[Array][4]** Array of components
+
+## findType
+
+Find all inner components by component id.
+The advantage of this method over `find` is that you can use it
+also before rendering the component
+
+### Parameters
+
+-   `id` **[String][1]** Component id
+
+### Examples
+
+```javascript
+const allImages = component.findType('image');
+console.log(allImages[0]) // prints the first found component
+```
+
+Returns **[Array][4]&lt;[Component][9]>** 
 
 ## closest
 
@@ -327,6 +389,83 @@ traitTitle && traitTitle.set('label', 'New label');
 
 Returns **Trait** Trait model
 
+## updateTrait
+
+Update a trait
+
+### Parameters
+
+-   `id` **[String][1]** The `id` or `name` of the trait
+-   `props` **[Object][2]** Object with the props to update
+
+### Examples
+
+```javascript
+component.updateTrait('title', {
+ type: 'select',
+ options: [ 'Option 1', 'Option 2' ],
+});
+```
+
+Returns **this** 
+
+## getTraitIndex
+
+Get the trait position index by id/name. Useful in case you want to
+replace some trait, at runtime, with something else.
+
+### Parameters
+
+-   `id` **[String][1]** The `id` or `name` of the trait
+
+### Examples
+
+```javascript
+const traitTitle = component.getTraitIndex('title');
+console.log(traitTitle); // 1
+```
+
+Returns **[Number][10]** Index position of the current trait
+
+## removeTrait
+
+Remove trait/s by id/s.
+
+### Parameters
+
+-   `id` **([String][1] \| [Array][4]&lt;[String][1]>)** The `id`/`name` of the trait (or an array)
+
+### Examples
+
+```javascript
+component.removeTrait('title');
+component.removeTrait(['title', 'id']);
+```
+
+Returns **[Array][4]** Array of removed traits
+
+## addTrait
+
+Add trait/s by id/s.
+
+### Parameters
+
+-   `trait` **([String][1] \| [Object][2] \| [Array][4]&lt;([String][1] \| [Object][2])>)** Trait to add (or an array of traits)
+-   `opts` **Options** Options for the add (optional, default `{}`)
+
+### Examples
+
+```javascript
+component.addTrait('title', { at: 1 }); // Add title trait (`at` option is the position index)
+component.addTrait({
+ type: 'checkbox',
+ name: 'disabled',
+});
+component.addTrait(['title', {...}, ...]);
+```
+
+Returns **[Array][4]** Array of added traits
+
 ## getName
 
 Get the name of the component
@@ -394,10 +533,17 @@ Returns **this**
 
 ## getEl
 
-Get the DOM element of the component. This works only of the
-component is already rendered
+Get the DOM element of the component.
+This works only if the component is already rendered
 
-Returns **[HTMLElement][10]** 
+Returns **[HTMLElement][12]** 
+
+## getView
+
+Get the View of the component.
+This works only if the component is already rendered
+
+Returns **ComponentView** 
 
 ## onAll
 
@@ -423,6 +569,28 @@ Remove the component
 
 Returns **this** 
 
+## getList
+
+The list of components is taken from the Components module.
+Initially, the list, was set statically on the Component object but it was
+not ok, as it was shared between multiple editor instances
+
+### Parameters
+
+-   `model`  
+
+## checkId
+
+This method checks, for each parsed component and style object
+(are not Components/CSSRules yet), for duplicated id and fixes them
+This method is used in Components.js just after the parsing
+
+### Parameters
+
+-   `components`  
+-   `styles`   (optional, default `[]`)
+-   `list`   (optional, default `{}`)
+
 [1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
 
 [2]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
@@ -441,4 +609,8 @@ Returns **this**
 
 [9]: #component
 
-[10]: https://developer.mozilla.org/docs/Web/HTML/Element
+[10]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
+
+[11]: https://github.com/artf/grapesjs/issues/1936
+
+[12]: https://developer.mozilla.org/docs/Web/HTML/Element

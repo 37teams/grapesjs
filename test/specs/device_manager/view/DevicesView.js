@@ -1,5 +1,5 @@
-const DevicesView = require('device_manager/view/DevicesView');
-const Devices = require('device_manager/model/Devices');
+import DevicesView from 'device_manager/view/DevicesView';
+import Devices from 'device_manager/model/Devices';
 
 module.exports = {
   run() {
@@ -9,6 +9,7 @@ module.exports = {
       var model;
       var view;
       var editorModel;
+      var em;
 
       beforeEach(() => {
         model = new Devices([]);

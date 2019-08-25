@@ -28,10 +28,10 @@
 
 import RichTextEditor from './model/RichTextEditor';
 import { on, off } from 'utils/mixins';
+import defaults from './config/config';
 
-module.exports = () => {
+export default () => {
   let config = {};
-  const defaults = require('./config/config');
   let toolbar, actions, lastEl, globalRte;
 
   const hideToolbar = () => {
@@ -138,7 +138,7 @@ module.exports = () => {
      * @example
      * rte.add('bold', {
      *   icon: '<b>B</b>',
-     *   attributes: {title: 'Bold',}
+     *   attributes: {title: 'Bold'},
      *   result: rte => rte.exec('bold')
      * });
      * rte.add('link', {
@@ -231,7 +231,7 @@ module.exports = () => {
      * Triggered when the offset of the editor is changed
      * @private
      */
-    udpatePosition() {
+    updatePosition() {
       const un = 'px';
       const canvas = config.em.get('Canvas');
       const pos = canvas.getTargetToElementDim(toolbar, lastEl, {
@@ -240,8 +240,12 @@ module.exports = () => {
 
       if (pos) {
         if (config.adjustToolbar) {
+          const frameOffset = canvas.getCanvasView().getFrameOffset();
           // Move the toolbar down when the top canvas edge is reached
-          if (pos.top <= pos.canvasTop) {
+          if (
+            pos.top <= pos.canvasTop &&
+            !(pos.elementHeight + pos.targetHeight >= frameOffset.height)
+          ) {
             pos.top = pos.elementTop + pos.elementHeight;
           }
         }
@@ -268,10 +272,10 @@ module.exports = () => {
       rte = customRte ? customRte.enable(el, rte) : this.initRte(el).enable();
 
       if (em) {
-        setTimeout(this.udpatePosition.bind(this), 0);
+        setTimeout(this.updatePosition.bind(this), 0);
         const event = 'change:canvasOffset canvasScroll';
-        em.off(event, this.udpatePosition, this);
-        em.on(event, this.udpatePosition, this);
+        em.off(event, this.updatePosition, this);
+        em.on(event, this.updatePosition, this);
         em.trigger('rte:enable', view, rte);
       }
 

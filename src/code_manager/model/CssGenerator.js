@@ -1,8 +1,9 @@
+import Backbone from 'backbone';
 import { isUndefined, each } from 'underscore';
 
 const maxValue = Number.MAX_VALUE;
 
-module.exports = require('backbone').Model.extend({
+export default Backbone.Model.extend({
   initialize() {
     this.compCls = [];
     this.ids = [];
@@ -148,11 +149,15 @@ module.exports = require('backbone').Model.extend({
    * @return {Array}
    */
   sortMediaObject(items = {}) {
-    const result = {};
     const itemsArr = [];
     each(items, (value, key) => itemsArr.push({ key, value }));
-    return itemsArr.sort(
-      (a, b) => this.getQueryLength(b.key) - this.getQueryLength(a.key)
-    );
+    return itemsArr.sort((a, b) => {
+      const isMobFirst = [a.key, b.key].every(
+        mquery => mquery.indexOf('min-width') !== -1
+      );
+      const left = isMobFirst ? a.key : b.key;
+      const right = isMobFirst ? b.key : a.key;
+      return this.getQueryLength(left) - this.getQueryLength(right);
+    });
   }
 });

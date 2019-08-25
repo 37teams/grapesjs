@@ -1,6 +1,6 @@
 import { isElement } from 'underscore';
 
-module.exports = {
+export default {
   /**
    * Check if fullscreen mode is enabled
    * @return {Boolean}
@@ -39,11 +39,13 @@ module.exports = {
    * Disable fullscreen mode
    */
   disable() {
-    var d = document;
-    if (d.exitFullscreen) d.exitFullscreen();
-    else if (d.webkitExitFullscreen) d.webkitExitFullscreen();
-    else if (d.mozCancelFullScreen) d.mozCancelFullScreen();
-    else if (d.msExitFullscreen) d.msExitFullscreen();
+    const d = document;
+    if (this.isEnabled()) {
+      if (d.exitFullscreen) d.exitFullscreen();
+      else if (d.webkitExitFullscreen) d.webkitExitFullscreen();
+      else if (d.mozCancelFullScreen) d.mozCancelFullScreen();
+      else if (d.msExitFullscreen) d.msExitFullscreen();
+    }
   },
 
   /**

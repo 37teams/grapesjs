@@ -1,8 +1,9 @@
 import Backbone from 'backbone';
-const PropertyView = require('./PropertyView');
+import PropertyView from './PropertyView';
+
 const $ = Backbone.$;
 
-module.exports = PropertyView.extend({
+export default PropertyView.extend({
   templateInput() {
     const pfx = this.pfx;
     return `
@@ -55,7 +56,7 @@ module.exports = PropertyView.extend({
           prop.parent = model;
         }, this);
 
-        var PropertiesView = require('./PropertiesView');
+        var PropertiesView = require('./PropertiesView').default;
         var propsView = new PropertiesView(this.getPropsConfig());
         this.$props = propsView.render().$el;
         this.properties = propsView.properties;
@@ -111,15 +112,11 @@ module.exports = PropertyView.extend({
     // the corresponding value from the requested index, otherwise try
     // to get the value of the sub-property
     if (targetValue) {
-      const values = targetValue.split(' ');
+      const values = targetValue.split(this.model.getSplitSeparator());
       value = values[index];
     } else {
       value =
         view && view.getTargetValue({ ignoreCustomValue: 1, ignoreDefault: 1 });
-    }
-
-    if (view) {
-      value = view.model.parseValue(value).value;
     }
 
     return value;

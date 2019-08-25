@@ -1,6 +1,6 @@
-const Property = require('./Property');
+import Property from './Property';
 
-module.exports = Property.extend({
+export default Property.extend({
   defaults: {
     ...Property.prototype.defaults,
     // 'background' is a good example where to make a difference
@@ -24,7 +24,7 @@ module.exports = Property.extend({
   initialize(props = {}, opts = {}) {
     Property.callParentInit(Property, this, props, opts);
     const properties = this.get('properties') || [];
-    const Properties = require('./Properties');
+    const Properties = require('./Properties').default;
     this.set('properties', new Properties(properties));
     this.listenTo(this, 'change:value', this.updateValues);
     Property.callInit(this, props, opts);
@@ -43,7 +43,7 @@ module.exports = Property.extend({
    * Update property values
    */
   updateValues() {
-    const values = this.getFullValue().split(this.get('separator'));
+    const values = this.getFullValue().split(this.getSplitSeparator());
     this.get('properties').each((property, i) => {
       const len = values.length;
       // Try to get value from a shorthand:
@@ -54,6 +54,14 @@ module.exports = Property.extend({
       // There some issue with UndoManager
       //property.setValue(value, 0, {fromParent: 1});
     });
+  },
+
+  /**
+   * Split by sperator but avoid it inside parenthesis
+   * @return {RegExp}
+   */
+  getSplitSeparator() {
+    return new RegExp(`${this.get('separator')}(?![^\\(]*\\))`);
   },
 
   /**

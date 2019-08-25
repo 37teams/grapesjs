@@ -1,21 +1,23 @@
+import { bindAll } from 'underscore';
 import Backbone from 'backbone';
-var CodeMirror = require('codemirror/lib/codemirror');
-var htmlMode = require('codemirror/mode/htmlmixed/htmlmixed');
-var cssMode = require('codemirror/mode/css/css');
-var formatting = require('codemirror-formatting');
+import CodeMirror from 'codemirror/lib/codemirror';
+import 'codemirror/mode/htmlmixed/htmlmixed';
+import 'codemirror/mode/css/css';
+import 'codemirror-formatting';
 
-module.exports = Backbone.Model.extend({
+export default Backbone.Model.extend({
   defaults: {
     input: '',
     label: '',
     codeName: '',
-    theme: '',
+    theme: 'hopscotch',
     readOnly: true,
     lineNumbers: true
   },
 
   /** @inheritdoc */
   init(el) {
+    bindAll(this, 'onChange');
     this.editor = CodeMirror.fromTextArea(el, {
       dragDrop: false,
       lineWrapping: true,
@@ -23,8 +25,13 @@ module.exports = Backbone.Model.extend({
       ...this.attributes
     });
     this.element = el;
+    this.editor.on('change', this.onChange);
 
     return this;
+  },
+
+  onChange() {
+    this.trigger('update', this);
   },
 
   getEditor() {
@@ -75,16 +82,17 @@ module.exports = Backbone.Model.extend({
   },
 
   /** @inheritdoc */
-  setContent(v) {
-    if (!this.editor) return;
-    this.editor.setValue(v);
-    if (this.editor.autoFormatRange) {
-      CodeMirror.commands.selectAll(this.editor);
-      this.editor.autoFormatRange(
-        this.editor.getCursor(true),
-        this.editor.getCursor(false)
-      );
-      CodeMirror.commands.goDocStart(this.editor);
+  setContent(v, opts = {}) {
+    const { editor } = this;
+    if (!editor) return;
+    editor.setValue(v);
+
+    if (editor.autoFormatRange) {
+      CodeMirror.commands.selectAll(editor);
+      editor.autoFormatRange(editor.getCursor(true), editor.getCursor(false));
+      CodeMirror.commands.goDocStart(editor);
     }
+
+    !opts.noRefresh && setTimeout(() => this.refresh());
   }
 });

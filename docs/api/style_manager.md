@@ -29,7 +29,6 @@ const styleManager = editor.StyleManager;
 -   [removeProperty][9]
 -   [getProperties][10]
 -   [getModelToStyle][11]
--   [getModelToStyle][11]
 -   [addType][12]
 -   [getType][13]
 -   [getTypes][14]
@@ -53,6 +52,8 @@ that one will be returned
     -   `sector.name` **[string][17]** Sector's label (optional, default `''`)
     -   `sector.open` **[Boolean][18]** Indicates if the sector should be opened (optional, default `true`)
     -   `sector.properties` **[Array][19]&lt;[Object][16]>** Array of properties (optional, default `[]`)
+-   `opts`   (optional, default `{}`)
+-   `options` **[Object][16]** Options (optional, default `{}`)
 
 ### Examples
 
@@ -61,7 +62,8 @@ var sector = styleManager.addSector('mySector',{
   name: 'My sector',
   open: true,
   properties: [{ name: 'My property'}]
-});
+}, { at: 0 });
+// With `at: 0` we place the new sector at the beginning of the collection
 ```
 
 Returns **Sector** Added Sector
@@ -73,6 +75,7 @@ Get sector by id
 ### Parameters
 
 -   `id` **[string][17]** Sector id
+-   `opts`   (optional, default `{}`)
 
 ### Examples
 

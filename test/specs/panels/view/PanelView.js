@@ -1,5 +1,5 @@
-const PanelView = require('panels/view/PanelView');
-const Panel = require('panels/model/Panel');
+import PanelView from 'panels/view/PanelView';
+import Panel from 'panels/model/Panel';
 
 module.exports = {
   run() {
@@ -37,6 +37,19 @@ module.exports = {
         model.set('content', 'test');
         model.set('content', 'test2');
         expect(view.$el.html()).toEqual('test2');
+      });
+
+      test('Hide panel', () => {
+        expect(view.$el.hasClass('hidden')).toBeFalsy();
+        model.set('visible', false);
+        expect(view.$el.hasClass('hidden')).toBeTruthy();
+      });
+
+      test('Show panel', () => {
+        model.set('visible', false);
+        expect(view.$el.hasClass('hidden')).toBeTruthy();
+        model.set('visible', true);
+        expect(view.$el.hasClass('hidden')).toBeFalsy();
       });
 
       describe('Init with options', () => {

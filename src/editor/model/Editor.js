@@ -1,11 +1,6 @@
-import {
-  isUndefined,
-  defaults,
-  isArray,
-  contains,
-  toArray,
-  keys
-} from 'underscore';
+import { isUndefined, isArray, contains, toArray, keys } from 'underscore';
+import Backbone from 'backbone';
+import Extender from 'utils/extender';
 import { getModel } from 'utils/mixins';
 
 const deps = [
@@ -15,8 +10,8 @@ const deps = [
   require('storage_manager'),
   require('device_manager'),
   require('parser'),
-  require('style_manager'),
   require('selector_manager'),
+  require('style_manager'),
   require('modal_dialog'),
   require('code_manager'),
   require('panels'),
@@ -31,11 +26,11 @@ const deps = [
   require('block_manager')
 ];
 
-const Backbone = require('backbone');
 const { Collection } = Backbone;
 let timedInterval;
+let updateItr;
 
-require('utils/extender')({
+Extender({
   Backbone: Backbone,
   $: Backbone.$
 });
@@ -48,13 +43,13 @@ const logs = {
   error: console.error
 };
 
-module.exports = Backbone.Model.extend({
+export default Backbone.Model.extend({
   defaults() {
     return {
       editing: 0,
       selected: new Collection(),
       clipboard: null,
-      designerMode: false,
+      dmode: 0,
       componentHovered: null,
       previousModel: null,
       changesCount: 0,
@@ -72,6 +67,7 @@ module.exports = Backbone.Model.extend({
     this.set('modules', []);
     this.set('toLoad', []);
     this.set('storables', []);
+    this.set('dmode', c.dragMode);
     const el = c.el;
     const log = c.log;
     const toLog = log === true ? keys(logs) : isArray(log) ? log : [];
@@ -103,6 +99,10 @@ module.exports = Backbone.Model.extend({
         });
       }
     );
+  },
+
+  getContainer() {
+    return this.config.el;
   },
 
   listenLog(event) {
@@ -156,6 +156,8 @@ module.exports = Backbone.Model.extend({
   updateChanges() {
     const stm = this.get('StorageManager');
     const changes = this.get('changesCount');
+    updateItr && clearTimeout(updateItr);
+    updateItr = setTimeout(() => this.trigger('update'));
 
     if (this.config.noticeOnUnload) {
       window.onbeforeunload = changes ? e => 1 : null;
@@ -173,18 +175,24 @@ module.exports = Backbone.Model.extend({
    * @private
    */
   loadModule(moduleName) {
-    var c = this.config;
-    var Mod = new moduleName();
-    var name = Mod.name.charAt(0).toLowerCase() + Mod.name.slice(1);
-    var cfg = c[name] || c[Mod.name] || {};
-    cfg.pStylePrefix = c.pStylePrefix || '';
+    const { config } = this;
+    const Module = moduleName.default || moduleName;
+    const Mod = new Module();
+    const name = Mod.name.charAt(0).toLowerCase() + Mod.name.slice(1);
+    const cfgParent = !isUndefined(config[name])
+      ? config[name]
+      : config[Mod.name];
+    const cfg = cfgParent || {};
+    const sm = this.get('StorageManager');
+    cfg.pStylePrefix = config.pStylePrefix || '';
 
-    // Check if module is storable
-    var sm = this.get('StorageManager');
+    if (!isUndefined(cfgParent) && !cfgParent) {
+      cfg._disable = 1;
+    }
 
     if (Mod.storageKey && Mod.store && Mod.load && sm) {
       cfg.stm = sm;
-      var storables = this.get('storables');
+      const storables = this.get('storables');
       storables.push(Mod);
       this.set('storables', storables);
     }
@@ -273,9 +281,11 @@ module.exports = Backbone.Model.extend({
    * @private
    */
   setSelected(el, opts = {}) {
+    const { scroll } = opts;
     const multiple = isArray(el);
     const els = multiple ? el : [el];
     const selected = this.get('selected');
+    let added;
 
     // If an array is passed remove all selected
     // expect those yet to be selected
@@ -286,7 +296,10 @@ module.exports = Backbone.Model.extend({
       if (model && !model.get('selectable')) return;
       !multiple && this.removeSelected(selected.filter(s => s !== model));
       this.addSelected(model, opts);
+      added = model;
     });
+
+    scroll && added && this.get('Canvas').scrollTo(added, scroll);
   },
 
   /**
@@ -563,6 +576,7 @@ module.exports = Backbone.Model.extend({
    * @private
    */
   refreshCanvas() {
+    this.set('canvasOffset', null);
     this.set('canvasOffset', this.get('Canvas').getOffset());
   },
 
@@ -605,6 +619,22 @@ module.exports = Backbone.Model.extend({
    */
   getDirtyCount() {
     return this.get('changesCount');
+  },
+
+  getZoomDecimal() {
+    return this.get('Canvas').getZoomDecimal();
+  },
+
+  setDragMode(value) {
+    return this.set('dmode', value);
+  },
+
+  /**
+   * Returns true if the editor is in absolute mode
+   * @returns {Boolean}
+   */
+  inAbsoluteMode() {
+    return this.get('dmode') === 'absolute';
   },
 
   /**

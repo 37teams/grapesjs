@@ -6,20 +6,19 @@ import {
   isEmpty,
   isBoolean,
   has,
-  clone,
   isString,
   forEach,
   result,
   keys
 } from 'underscore';
-import { shallowDiff, hasDnd } from 'utils/mixins';
+import { shallowDiff } from 'utils/mixins';
 import Styleable from 'domain_abstract/model/Styleable';
+import Backbone from 'backbone';
+import Components from './Components';
+import Selector from 'selector_manager/model/Selector';
+import Selectors from 'selector_manager/model/Selectors';
+import Traits from 'trait_manager/model/Traits';
 
-const Backbone = require('backbone');
-const Components = require('./Components');
-const Selector = require('selector_manager/model/Selector');
-const Selectors = require('selector_manager/model/Selectors');
-const Traits = require('trait_manager/model/Traits');
 const componentList = {};
 let componentIndex = 0;
 
@@ -74,6 +73,8 @@ const avoidInline = em => em && em.getConfig('avoidInlineStyle');
  * @property {String} [content=''] Content of the component (not escaped) which will be appended before children rendering. Default: `''`
  * @property {String} [icon=''] Component's icon, this string will be inserted before the name (in Layers and badge), eg. it can be an HTML string '<i class="fa fa-square-o"></i>'. Default: `''`
  * @property {String|Function} [script=''] Component's javascript. More about it [here](/modules/Components-js.html). Default: `''`
+ * @property {String|Function} [script-export=''] You can specify javascript available only in export functions (eg. when you get the HTML).
+ * If this property is defined it will overwrite the `script` one (in export functions). Default: `''`
  * @property {Array<Object|String>} [traits=''] Component's traits. More about it [here](/modules/Traits.html). Default: `['id', 'title']`
  * @property {Array<String>} [propagate=[]] Indicates an array of properties which will be inhereted by all NEW appended children.
  *  For example if you create a component likes this: `{ removable: false, draggable: false, propagate: ['removable', 'draggable'] }`
@@ -112,11 +113,31 @@ const Component = Backbone.Model.extend(Styleable).extend(
       style: '', // Component related style
       classes: '', // Array of classes
       script: '',
+      'script-export': '',
       attributes: '',
       traits: ['id', 'title'],
       propagate: '',
+      dmode: '',
       toolbar: null
     },
+
+    /**
+     * Hook method, called once the model is created
+     */
+    init() {},
+
+    /**
+     * Hook method, called when the model has been updated (eg. updated some model's property)
+     * @param {String} property Property name, if triggered after some property update
+     * @param {*} value Property value, if triggered after some property update
+     * @param {*} previous Property previous value, if triggered after some property update
+     */
+    updated(property, value, previous) {},
+
+    /**
+     * Hook method, called once the model has been removed
+     */
+    removed() {},
 
     initialize(props = {}, opt = {}) {
       const em = opt.em;
@@ -151,8 +172,11 @@ const Component = Backbone.Model.extend(Styleable).extend(
       this.opt = opt;
       this.em = em;
       this.config = opt.config || {};
+      this.set('attributes', {
+        ...(this.defaults.attributes || {}),
+        ...(this.get('attributes') || {})
+      });
       this.ccid = Component.createId(this);
-      this.set('attributes', this.get('attributes') || {});
       this.initClasses();
       this.initTraits();
       this.initComponents();
@@ -169,10 +193,10 @@ const Component = Backbone.Model.extend(Styleable).extend(
           this.emitUpdate(name, ...args)
         );
       });
-      this.init();
 
-      if (em) {
-        em.trigger('component:create', this);
+      if (!opt.temporary) {
+        this.init();
+        em && em.trigger('component:create', this);
       }
     },
 
@@ -186,6 +210,33 @@ const Component = Backbone.Model.extend(Styleable).extend(
      */
     is(type) {
       return !!(this.get('type') == type);
+    },
+
+    /**
+     * Return all the propeties
+     * @returns {Object}
+     */
+    props() {
+      return this.attributes;
+    },
+
+    /**
+     * Get the index of the component in the parent collection.
+     * @return {Number}
+     */
+    index() {
+      const { collection } = this;
+      return collection && collection.indexOf(this);
+    },
+
+    /**
+     * Change the drag mode of the component.
+     * To get more about this feature read: https://github.com/artf/grapesjs/issues/1936
+     * @param {String} value Drag mode, options: 'absolute' | 'translate'
+     * @returns {this}
+     */
+    setDragMode(value) {
+      return this.set('dmode', value);
     },
 
     /**
@@ -206,6 +257,27 @@ const Component = Backbone.Model.extend(Styleable).extend(
         model && result.push(model);
       });
 
+      return result;
+    },
+
+    /**
+     * Find all inner components by component id.
+     * The advantage of this method over `find` is that you can use it
+     * also before rendering the component
+     * @param {String} id Component id
+     * @returns {Array<Component>}
+     * @example
+     * const allImages = component.findType('image');
+     * console.log(allImages[0]) // prints the first found component
+     */
+    findType(id) {
+      const result = [];
+      const find = components =>
+        components.forEach(item => {
+          item.is(id) && result.push(item);
+          find(item.components());
+        });
+      find(this.components());
       return result;
     },
 
@@ -280,7 +352,9 @@ const Component = Backbone.Model.extend(Styleable).extend(
       this.set('attributes', attrs, opts);
       const attrPrev = { ...this.previous('attributes') };
       const diff = shallowDiff(attrPrev, attrs);
-      keys(diff).forEach(pr => this.trigger(`change:attributes:${pr}`));
+      keys(diff).forEach(pr =>
+        this.trigger(`change:attributes:${pr}`, this, diff[pr])
+      );
 
       return this;
     },
@@ -455,8 +529,10 @@ const Component = Backbone.Model.extend(Styleable).extend(
     initClasses() {
       const event = 'change:classes';
       const toListen = [this, event, this.initClasses];
+      const cls = this.get('classes') || [];
+      const clsArr = isString(cls) ? cls.split(' ') : cls;
       this.stopListening(...toListen);
-      const classes = this.normalizeClasses(this.get('classes') || []);
+      const classes = this.normalizeClasses(clsArr);
       const selectors = new Selectors([]);
       this.set('classes', selectors);
       selectors.add(classes);
@@ -475,12 +551,14 @@ const Component = Backbone.Model.extend(Styleable).extend(
       const components = this.get('components');
       const addChild = !this.opt.avoidChildren;
       this.set('components', comps);
-      addChild && comps.add(components);
+      addChild &&
+        comps.add(isFunction(components) ? components(this) : components);
       this.listenTo(...toListen);
       return this;
     },
 
-    initTraits() {
+    initTraits(changed) {
+      const { em } = this;
       const event = 'change:traits';
       const toListen = [this, event, this.initTraits];
       this.stopListening(...toListen);
@@ -496,10 +574,9 @@ const Component = Backbone.Model.extend(Styleable).extend(
       });
       traits.length && this.set('attributes', attrs);
       this.listenTo(...toListen);
+      changed && em && em.trigger('component:toggled');
       return this;
     },
-
-    init() {},
 
     /**
      * Add new component children
@@ -578,7 +655,7 @@ const Component = Backbone.Model.extend(Styleable).extend(
         if (model.collection) {
           tb.push({
             attributes: { class: 'fa fa-arrow-up' },
-            command: 'select-parent'
+            command: ed => ed.runCommand('core:component-exit', { force: 1 })
           });
         }
         if (model.get('draggable')) {
@@ -614,6 +691,7 @@ const Component = Backbone.Model.extend(Styleable).extend(
      */
     loadTraits(traits, opts = {}) {
       traits = traits || this.get('traits');
+      traits = isFunction(traits) ? traits(this) : traits;
 
       if (!(traits instanceof Traits)) {
         const trt = new Traits([], this.opt);
@@ -642,6 +720,76 @@ const Component = Backbone.Model.extend(Styleable).extend(
       return this.get('traits').filter(trait => {
         return trait.get('id') === id || trait.get('name') === id;
       })[0];
+    },
+
+    /**
+     * Update a trait
+     * @param  {String} id The `id` or `name` of the trait
+     * @param  {Object} props Object with the props to update
+     * @return {this}
+     * @example
+     * component.updateTrait('title', {
+     *  type: 'select',
+     *  options: [ 'Option 1', 'Option 2' ],
+     * });
+     */
+    updateTrait(id, props) {
+      const { em } = this;
+      const trait = this.getTrait(id);
+      trait && trait.set(props);
+      em && em.trigger('component:toggled');
+      return this;
+    },
+
+    /**
+     * Get the trait position index by id/name. Useful in case you want to
+     * replace some trait, at runtime, with something else.
+     * @param  {String} id The `id` or `name` of the trait
+     * @return {Number} Index position of the current trait
+     * @example
+     * const traitTitle = component.getTraitIndex('title');
+     * console.log(traitTitle); // 1
+     */
+    getTraitIndex(id) {
+      const trait = this.getTrait(id);
+      return trait ? this.get('traits').indexOf(trait) : trait;
+    },
+
+    /**
+     * Remove trait/s by id/s.
+     * @param  {String|Array<String>} id The `id`/`name` of the trait (or an array)
+     * @return {Array} Array of removed traits
+     * @example
+     * component.removeTrait('title');
+     * component.removeTrait(['title', 'id']);
+     */
+    removeTrait(id) {
+      const { em } = this;
+      const ids = isArray(id) ? id : [id];
+      const toRemove = ids.map(id => this.getTrait(id));
+      const removed = this.get('traits').remove(toRemove);
+      em && em.trigger('component:toggled');
+      return removed;
+    },
+
+    /**
+     * Add trait/s by id/s.
+     * @param  {String|Object|Array<String|Object>} trait Trait to add (or an array of traits)
+     * @param  {Options} opts Options for the add
+     * @return {Array} Array of added traits
+     * @example
+     * component.addTrait('title', { at: 1 }); // Add title trait (`at` option is the position index)
+     * component.addTrait({
+     *  type: 'checkbox',
+     *  name: 'disabled',
+     * });
+     * component.addTrait(['title', {...}, ...]);
+     */
+    addTrait(trait, opts = {}) {
+      const { em } = this;
+      const added = this.get('traits').add(trait, opts);
+      em && em.trigger('component:toggled');
+      return added;
     },
 
     /**
@@ -704,7 +852,12 @@ const Component = Backbone.Model.extend(Styleable).extend(
         attr.style = style;
       }
 
-      return new this.constructor(attr, opts);
+      const cloned = new this.constructor(attr, opts);
+      const event = 'component:clone';
+      em && em.trigger(event, cloned);
+      this.trigger(event, cloned);
+
+      return cloned;
     },
 
     /**
@@ -820,6 +973,7 @@ const Component = Backbone.Model.extend(Styleable).extend(
       obj.attributes = this.getAttributes();
       delete obj.attributes.class;
       delete obj.toolbar;
+      delete obj.traits;
 
       if (this.em.getConfig('avoidDefaults')) {
         const defaults = result(this, 'defaults');
@@ -929,6 +1083,14 @@ const Component = Backbone.Model.extend(Styleable).extend(
     emitUpdate(property, ...args) {
       const em = this.em;
       const event = 'component:update' + (property ? `:${property}` : '');
+      property &&
+        this.updated(
+          property,
+          property && this.get(property),
+          property && this.previous(property),
+          ...args
+        );
+      this.trigger(event, ...args);
       em && em.trigger(event, this, ...args);
     },
 
@@ -954,7 +1116,8 @@ const Component = Backbone.Model.extend(Styleable).extend(
      * @return {this}
      */
     remove() {
-      return this.collection.remove(this);
+      const coll = this.collection;
+      return coll && coll.remove(this);
     },
 
     /**
@@ -996,19 +1159,86 @@ const Component = Backbone.Model.extend(Styleable).extend(
      * @private
      */
     createId(model) {
-      componentIndex++;
-      // Testing 1000000 components with `+ 2` returns 0 collisions
-      const ilen = componentIndex.toString().length + 2;
-      const uid = (Math.random() + 1.1).toString(36).slice(-ilen);
-      const nextId = 'i' + uid;
-      componentList[nextId] = model;
+      const list = Component.getList(model);
+      let { id } = model.get('attributes');
+      let nextId;
+
+      if (id) {
+        nextId = Component.getIncrementId(id, list);
+        model.setId(nextId);
+      } else {
+        nextId = Component.getNewId(list);
+      }
+
+      list[nextId] = model;
       return nextId;
     },
 
-    getList() {
-      return componentList;
+    getNewId(list) {
+      const count = Object.keys(list).length;
+      // Testing 1000000 components with `+ 2` returns 0 collisions
+      const ilen = count.toString().length + 2;
+      const uid = (Math.random() + 1.1).toString(36).slice(-ilen);
+      let newId = `i${uid}`;
+
+      while (list[newId]) {
+        newId = Component.getNewId(list);
+      }
+
+      return newId;
+    },
+
+    getIncrementId(id, list) {
+      let counter = 1;
+      let newId = id;
+
+      while (list[newId]) {
+        counter++;
+        newId = `${id}-${counter}`;
+      }
+
+      return newId;
+    },
+
+    /**
+     * The list of components is taken from the Components module.
+     * Initially, the list, was set statically on the Component object but it was
+     * not ok, as it was shared between multiple editor instances
+     */
+    getList(model) {
+      const domc = model.opt && model.opt.domc;
+      return domc ? domc.componentsById : {};
+    },
+
+    /**
+     * This method checks, for each parsed component and style object
+     * (are not Components/CSSRules yet), for duplicated id and fixes them
+     * This method is used in Components.js just after the parsing
+     */
+    checkId(components, styles = [], list = {}) {
+      const comps = isArray(components) ? components : [components];
+      comps.forEach(comp => {
+        const { attributes = {}, components } = comp;
+        const { id } = attributes;
+
+        // Check if we have collisions with current components
+        if (id && list[id]) {
+          const newId = Component.getIncrementId(id, list);
+          attributes.id = newId;
+          // Update passed styles
+          isArray(styles) &&
+            styles.forEach(style => {
+              const { selectors } = style;
+              selectors.forEach((sel, idx) => {
+                if (sel === `#${id}`) selectors[idx] = `#${newId}`;
+              });
+            });
+        }
+
+        components && Component.checkId(components, styles, list);
+      });
     }
   }
 );
 
-module.exports = Component;
+export default Component;
